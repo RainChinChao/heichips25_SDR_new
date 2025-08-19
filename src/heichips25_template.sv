@@ -15,24 +15,115 @@ module heichips25_template (
     input  wire       clk,      // clock
     input  wire       rst_n     // reset_n - low to reset
 );
+	wire _unused = &{ena, ui_in[0]};
 
-    // List all unused inputs to prevent warnings
-    wire _unused = &{ena, ui_in[7:1], uio_in[7:0]};
 
-    logic [7:0] count;
+logic [3:0]in_data_I;
+logic [3:0]in_data_Q;
+logic [3:0]in_data_I2;
+logic [3:0]in_data_Q2;
+ 
+ assign in_data_I = ui_in[3:0];
+ 
+assign in_data_Q =ui_in[7:4];
+assign in_data_I2 = uio_in[7:4];
 
-    always_ff @(posedge clk) begin
-        if (!rst_n) begin
-            count <= '0;
-        end else begin
-            if (ui_in[0]) begin
-                count <= count + 1;
-            end
-        end
-    end
-    
-    assign uo_out  = count;
-    assign uio_out = count;
-    assign uio_oe  = '1;
+assign in_data_Q2 = uio_in[3:0];
+ 
+ 
+ logic [8:0] [15:0]matrix1;
+ logic [8:0] [15:0]matrix2;
+  logic [8:0] [15:0]matrix3;
+ logic [8:0] [15:0]matrix4;
+ 
+ 
+ 
+  DP_Matrix_G  #(.MA_SIZE_o(4),
+        .RANGE_X_MIN_o(31),
+        .RANGE_X_MAX_o(34),
+        .RANGE_Y_MIN_o(23),
+        .RANGE_Y_MAX_o(26))DP_1(
+ 	clk,
+    rst_n,  // Active-low synchronous reset
+    in_data_I,  // Q5.10 fixed-point input
+	in_data_Q,
+
+    matrix1 // 8-bit counters
+);
+
+   DP_Matrix_G  #(.MA_SIZE_o(4),
+        .RANGE_X_MIN_o(31),
+        .RANGE_X_MAX_o(34),
+        .RANGE_Y_MIN_o(23),
+        .RANGE_Y_MAX_o(26))DP_2(
+ 	clk,
+    rst_n,  // Active-low synchronous reset
+    in_data_I2,  // Q5.10 fixed-point input
+	in_data_Q2,
+
+    matrix2 // 8-bit counters
+);
+
+
+  DP_Matrix_G  #(.MA_SIZE_o(4),
+        .RANGE_X_MIN_o(31),
+        .RANGE_X_MAX_o(34),
+        .RANGE_Y_MIN_o(39),
+        .RANGE_Y_MAX_o(42))DP_3(
+ 	clk,
+    rst_n,  // Active-low synchronous reset
+    in_data_I,  // Q5.10 fixed-point input
+	in_data_Q,
+
+    matrix3 // 8-bit counters
+);
+
+   DP_Matrix_G  #(.MA_SIZE_o(4),
+        .RANGE_X_MIN_o(31),
+        .RANGE_X_MAX_o(34),
+        .RANGE_Y_MIN_o(39),
+        .RANGE_Y_MAX_o(42))DP_4(
+ 	clk,
+    rst_n,  // Active-low synchronous reset
+    in_data_I2,  // Q5.10 fixed-point input
+	in_data_Q2,
+
+    matrix4 // 8-bit counters
+);
+
+
+
+ 
+ logic [23:0]  total_sum;
+ logic [23:0]  total_sum1;
+ logic [24:0]  total_sum2;
+ 
+ MAC4x4 mac1(
+     clk,
+     rst_n,
+    matrix1 ,      // 4x4 matrix A, flattened
+    matrix2 ,      // 4x4 matrix B, flattened
+    total_sum1      // Registered output
+);
+ 
+ 
+  MAC4x4 mac2(
+     clk,
+     rst_n,
+    matrix3 ,      // 4x4 matrix A, flattened
+    matrix4 ,      // 4x4 matrix B, flattened
+    total_sum2      // Registered output
+);
+ 
+	assign total_sum = total_sum1+total_sum2;
+    assign uo_out = total_sum[7:0];  // Output data from demodulation
+	assign uio_out= total_sum[15:8];
+
+
+
+assign uio_oe  = '1;
+
+
+
 
 endmodule
